@@ -7,6 +7,7 @@ import random
 import time
 from itertools import islice
 import flask
+import psycopg2
 
 import os
 from dotenv import load_dotenv
@@ -18,6 +19,7 @@ PASSWORD = os.getenv("PASSWORD")
 DECK_URL = os.getenv("DECK_URL")
 ADS_URL = os.getenv("ADS_URL")
 SHOJOS_URL = os.getenv("SHOJOS_URL")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 WORDS_LIST = ["Good", "Bad", "New", "Else"]
 
@@ -31,6 +33,47 @@ app = flask.Flask(__name__)
 @app.route("/")
 def home():
     return "OK", 200
+
+
+def connect_db():
+    # if not DATABASE_URL:
+    #     print("ERROR" * 10)
+    #     print("Something is wrong with the DB URL");
+    return psycopg2.connect(DATABASE_URL)
+
+
+def get_index():
+    conn = connect_db()
+    cur = conn.cursor()
+    cur.execute("SELECT value FROM state WHERE key = 'index'")
+    index = cur.fetchone()[0]
+    cur.close()
+    conn.close()
+    return index
+
+
+def set_index(index):
+    conn = connect_db()
+    cur = conn.cursor()
+    cur.execute("UPDATE state SET value = %s WHERE key = 'index'", (index,))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+def get_links(index):
+    conn = connect_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT link FROM chapters
+        WHERE id >= %s
+        ORDER BY id
+        LIMIT 4
+    """, (index,))
+    links = [row[0] for row in cur.fetchall()]
+    cur.close()
+    conn.close()
+    return links
 
 
 def cleanup(browser):
@@ -60,15 +103,18 @@ def read_chapter():  # 4 with a delay 2.5-3.5 minutes
 
         ensure_logged_in(page)
 
-        with open("index.txt", 'r') as file:
-            index = int(file.readline().strip())
+        # with open("index.txt", 'r') as file:
+        #     index = int(file.readline().strip())
+        #
+        # with open("chapters.txt", 'r') as file:
+        #     links = [line.strip()
+        #              for line in islice(file, index - 1, index + 3)]
 
-        with open("chapters.txt", 'r') as file:
-            links = [line.strip()
-                     for line in islice(file, index - 1, index + 3)]
+        index = get_index()
+        links = get_links(index)
 
+        completed = 0
         for link in links:
-            index += 1
             try:
                 page.goto(link)
                 time.sleep(random.randint(1, 3))
@@ -86,15 +132,16 @@ def read_chapter():  # 4 with a delay 2.5-3.5 minutes
                     }
                 """
                 page.evaluate(js_command)
-
+                completed += 1
                 if link != links[-1]:
                     time.sleep(random.randint(120, 180))
 
             except Exception:
                 ensure_logged_in(page)
 
-        with open("index.txt", 'w') as file:
-            file.write(f"{index}")
+        # with open("index.txt", 'w') as file:
+        #     file.write(f"{index}")
+        set_index(index + completed)
 
         browser.close()
 
@@ -152,70 +199,70 @@ def watch_ads():
         browser.close()
 
 
-def scrape_names():
-    with sync_playwright() as p:
-        browser = p.chromium.launch_persistent_context(
-            user_data_dir="./user_data", headless=True)
-
-        cleanup(browser)
-        page = browser.new_page()
-
-        ensure_logged_in(page)
-
-        page.goto(SHOJOS_URL)
-        time.sleep(random.randint(3, 7))
-
-        next_page_button = page.locator(
-            "li.pagination__button a", has_text="Вперёд")
-
-        while (next_page_button.count() > 0):
-            names_links = page.eval_on_selector_all(
-                "a.cards__item",
-                "els => els.map(el => el.href)"
-            )
-            with open("names.txt", 'a') as file:
-                for link in names_links:
-                    file.write(link + "\n")
-            next_page_button.click()
-            time.sleep(random.randint(2, 5))
-
-        browser.close()
-
-
-def scrape_chapters():
-    with sync_playwright() as p:
-        browser = p.chromium.launch_persistent_context(
-            user_data_dir="./user_data", headless=True)
-
-        cleanup(browser)
-        page = browser.new_page()
-
-        ensure_logged_in(page)
-
-        with open("names.txt", "r") as names_file:
-            for line in names_file:
-                # for line in islice(names_file, 204, None):
-                page.goto(line.strip())
-                time.sleep(random.randint(1, 5))
-
-                if page.is_disabled("button[data-page='chapters']"):
-                    print("=" * 100)
-                    print(line)
-                    print("=" * 100)
-                    continue
-                page.click("button[data-page='chapters']")
-
-                chapters_links = page.eval_on_selector_all(
-                    ".chapters__list a.chapters__item",
-                    "els => els.map(el => el.href)"
-                )
-
-                with open("chapters.txt", 'a') as file:
-                    for link in chapters_links:
-                        file.write(link + "\n")
-                time.sleep(random.randint(1, 5))
-
-        browser.close()
+# def scrape_names():
+#     with sync_playwright() as p:
+#         browser = p.chromium.launch_persistent_context(
+#             user_data_dir="./user_data", headless=True)
+#
+#         cleanup(browser)
+#         page = browser.new_page()
+#
+#         ensure_logged_in(page)
+#
+#         page.goto(SHOJOS_URL)
+#         time.sleep(random.randint(3, 7))
+#
+#         next_page_button = page.locator(
+#             "li.pagination__button a", has_text="Вперёд")
+#
+#         while (next_page_button.count() > 0):
+#             names_links = page.eval_on_selector_all(
+#                 "a.cards__item",
+#                 "els => els.map(el => el.href)"
+#             )
+#             with open("names.txt", 'a') as file:
+#                 for link in names_links:
+#                     file.write(link + "\n")
+#             next_page_button.click()
+#             time.sleep(random.randint(2, 5))
+#
+#         browser.close()
+#
+#
+# def scrape_chapters():
+#     with sync_playwright() as p:
+#         browser = p.chromium.launch_persistent_context(
+#             user_data_dir="./user_data", headless=True)
+#
+#         cleanup(browser)
+#         page = browser.new_page()
+#
+#         ensure_logged_in(page)
+#
+#         with open("names.txt", "r") as names_file:
+#             for line in names_file:
+#                 # for line in islice(names_file, 204, None):
+#                 page.goto(line.strip())
+#                 time.sleep(random.randint(1, 5))
+#
+#                 if page.is_disabled("button[data-page='chapters']"):
+#                     print("=" * 100)
+#                     print(line)
+#                     print("=" * 100)
+#                     continue
+#                 page.click("button[data-page='chapters']")
+#
+#                 chapters_links = page.eval_on_selector_all(
+#                     ".chapters__list a.chapters__item",
+#                     "els => els.map(el => el.href)"
+#                 )
+#
+#                 with open("chapters.txt", 'a') as file:
+#                     for link in chapters_links:
+#                         file.write(link + "\n")
+#                 time.sleep(random.randint(1, 5))
+#
+#         browser.close()
 
 
 # scrape_names()
