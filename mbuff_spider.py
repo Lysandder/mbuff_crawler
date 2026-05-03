@@ -1,5 +1,4 @@
 from datetime import datetime
-from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.executors.pool import ThreadPoolExecutor
 from playwright.sync_api import sync_playwright
@@ -94,6 +93,8 @@ def ensure_logged_in(page):
 
 
 def read_chapter():  # 4 with a delay 2.5-3.5 minutes
+    print('=' * 100)
+    print("Reading chapters started")
     with sync_playwright() as p:
         browser = p.chromium.launch_persistent_context(
             user_data_dir="./user_data", headless=True)
@@ -144,9 +145,14 @@ def read_chapter():  # 4 with a delay 2.5-3.5 minutes
         set_index(index + completed)
 
         browser.close()
+    print("Finished Reading chapters")
+    print('=' * 100)
+
 
 
 def leave_comment():  # 10 with a delay 10-30 seconds
+    print('=' * 100)
+    print("Leaving comments started")
     with sync_playwright() as p:
         browser = p.chromium.launch_persistent_context(
             user_data_dir="./user_data", headless=True)
@@ -172,9 +178,14 @@ def leave_comment():  # 10 with a delay 10-30 seconds
                 ensure_logged_in(page)
 
         browser.close()
+    print("Finished Leaving comments")
+    print('=' * 100)
+
 
 
 def watch_ads():
+    print('=' * 100)
+    print("Watching ADS started")
     with sync_playwright() as p:
         browser = p.chromium.launch_persistent_context(
             user_data_dir="./user_data", headless=True)
@@ -197,6 +208,9 @@ def watch_ads():
                 ensure_logged_in(page)
 
         browser.close()
+    print("Finished Watching ADS")
+    print('=' * 100)
+
 
 
 # def scrape_names():
@@ -268,14 +282,13 @@ def watch_ads():
 # scrape_names()
 # scrape_chapters()
 
-scheduler = BackgroundScheduler(
-    timezone="Asia/Tashkent", executors=executors)
-scheduler.add_job(read_chapter, 'interval', hours=1, max_instances=1)
-scheduler.add_job(leave_comment, 'cron', hour=3, minute=16, max_instances=1)
-scheduler.add_job(watch_ads, 'cron', hour=3, minute=0, max_instances=1)
+scheduler = BackgroundScheduler(timezone="Asia/Tashkent", executors=executors)
+scheduler.add_job(read_chapter, 'interval', hours=1, next_run_time=datetime.now(), max_instances=1)
+scheduler.add_job(leave_comment, 'cron', hour=3, minute=30, max_instances=1)
+scheduler.add_job(watch_ads, 'cron', hour=2, minute=30, max_instances=1)
 scheduler.start()
-
 
 # if __name__ == "__main__":
 port = int(os.environ.get("PORT", 3000))
 app.run(host="0.0.0.0", port=port)
+
