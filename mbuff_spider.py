@@ -1,4 +1,5 @@
 from datetime import datetime
+import threading
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.executors.pool import ThreadPoolExecutor
 from playwright.sync_api import sync_playwright
@@ -46,16 +47,18 @@ def connect_db():
 def install_chromium():
     print('=' * 100)
     print("Starting Installing Chromium...")
-    subprocess.run(
-        ["playwright", "install", "chromium"],
-        check=True
-    )
-    subprocess.run(
-        ["playwright", "install-deps", "chromium"],
-        check=True
-    )
+    subprocess.run(["playwright", "install", "chromium"], check=True)
+    subprocess.run(["playwright", "install-deps", "chromium"], check=True)
     print("Finished Installing Chromium")
     print('=' * 100)
+
+    # SCHEDULING
+    scheduler = BackgroundScheduler(timezone="Asia/Tashkent", executors=executors)
+    scheduler.add_job(read_chapter, 'interval', hours=1, next_run_time=datetime.now(), max_instances=1)
+    scheduler.add_job(leave_comment, 'cron', hour=3, minute=30, max_instances=1)
+    scheduler.add_job(watch_ads, 'cron', hour=2, minute=30, max_instances=1)
+    scheduler.start()
+
 
 
 def get_index():
@@ -296,13 +299,8 @@ def watch_ads():
 # scrape_names()
 # scrape_chapters()
 
-install_chromium()
-
-scheduler = BackgroundScheduler(timezone="Asia/Tashkent", executors=executors)
-scheduler.add_job(read_chapter, 'interval', hours=1, next_run_time=datetime.now(), max_instances=1)
-scheduler.add_job(leave_comment, 'cron', hour=3, minute=30, max_instances=1)
-scheduler.add_job(watch_ads, 'cron', hour=2, minute=30, max_instances=1)
-scheduler.start()
+thread = threading.Thread(target=install_chromium, daemon=True)
+thread.start()
 
 # if __name__ == "__main__":
 port = int(os.environ.get("PORT", 3000))
