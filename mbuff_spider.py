@@ -48,16 +48,24 @@ def install_chromium():
     print('=' * 100)
     print("Starting Installing Chromium...")
     subprocess.run(["playwright", "install", "chromium"], check=True)
+    print("Starting Installing Dependencies...")
     subprocess.run(["playwright", "install-deps", "chromium"], check=True)
     print("Finished Installing Chromium")
     print('=' * 100)
 
     # SCHEDULING
     scheduler = BackgroundScheduler(timezone="Asia/Tashkent", executors=executors)
-    scheduler.add_job(read_chapter, 'interval', hours=1, next_run_time=datetime.now(), max_instances=1)
-    scheduler.add_job(leave_comment, 'cron', hour=3, minute=30, max_instances=1)
-    scheduler.add_job(watch_ads, 'cron', hour=2, minute=30, max_instances=1)
+    start_time = datetime.now()
+    minutes = (start_time.minute + 30) % 60
+    scheduler.add_job(read_chapter, 'interval', hours=1, next_run_time=start_time, max_instances=1)
+    scheduler.add_job(leave_comment, 'cron', hour=3, minute=minutes, max_instances=1)
+    scheduler.add_job(watch_ads, 'cron', hour=4, minute=minutes, max_instances=1)
     scheduler.start()
+    print('=' * 100)
+    print(f"Reading chapters time: {start_time.minute}")
+    print(f"Leave comments time: 3:{minutes}")
+    print(f"Watch ADS time: 4:{minutes}")
+    print('=' * 100)
 
 
 
