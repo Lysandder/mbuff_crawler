@@ -268,13 +268,14 @@ def watch_ads():
 # scrape_names()
 # scrape_chapters()
 
-if __name__ == "__main__":
-    scheduler = BackgroundScheduler(
-        timezone="Asia/Tashkent", executors=executors)
-    scheduler.add_job(read_chapter, 'interval', hours=1, max_instances=1)
-    scheduler.add_job(leave_comment, 'cron', hour=3, minute=16, max_instances=1)
-    scheduler.add_job(watch_ads, 'cron', hour=3, minute=0, max_instances=1)
-    scheduler.start()
+scheduler = BackgroundScheduler(
+    timezone="Asia/Tashkent", executors=executors)
+scheduler.add_job(read_chapter, 'interval', hours=1, max_instances=1)
+scheduler.add_job(leave_comment, 'cron', hour=3, minute=16, max_instances=1)
+scheduler.add_job(watch_ads, 'cron', hour=3, minute=0, max_instances=1)
+scheduler.start()
 
-    port = int(os.environ.get("PORT", 3000))
-    app.run(host="0.0.0.0", port=port)
+
+# if __name__ == "__main__":
+port = int(os.environ.get("PORT", 3000))
+app.run(host="0.0.0.0", port=port)
