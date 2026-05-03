@@ -7,6 +7,8 @@ import time
 from itertools import islice
 import flask
 import psycopg2
+import subprocess
+import sys
 
 import os
 from dotenv import load_dotenv
@@ -39,6 +41,21 @@ def connect_db():
     #     print("ERROR" * 10)
     #     print("Something is wrong with the DB URL");
     return psycopg2.connect(DATABASE_URL)
+
+
+def install_chromium():
+    print('=' * 100)
+    print("Starting Installing Chromium...")
+    subprocess.run(
+        ["playwright", "install", "chromium"],
+        check=True
+    )
+    subprocess.run(
+        ["playwright", "install-deps", "chromium"],
+        check=True
+    )
+    print("Finished Installing Chromium")
+    print('=' * 100)
 
 
 def get_index():
@@ -149,7 +166,6 @@ def read_chapter():  # 4 with a delay 2.5-3.5 minutes
     print('=' * 100)
 
 
-
 def leave_comment():  # 10 with a delay 10-30 seconds
     print('=' * 100)
     print("Leaving comments started")
@@ -182,7 +198,6 @@ def leave_comment():  # 10 with a delay 10-30 seconds
     print('=' * 100)
 
 
-
 def watch_ads():
     print('=' * 100)
     print("Watching ADS started")
@@ -210,7 +225,6 @@ def watch_ads():
         browser.close()
     print("Finished Watching ADS")
     print('=' * 100)
-
 
 
 # def scrape_names():
@@ -282,6 +296,8 @@ def watch_ads():
 # scrape_names()
 # scrape_chapters()
 
+install_chromium()
+
 scheduler = BackgroundScheduler(timezone="Asia/Tashkent", executors=executors)
 scheduler.add_job(read_chapter, 'interval', hours=1, next_run_time=datetime.now(), max_instances=1)
 scheduler.add_job(leave_comment, 'cron', hour=3, minute=30, max_instances=1)
@@ -291,4 +307,3 @@ scheduler.start()
 # if __name__ == "__main__":
 port = int(os.environ.get("PORT", 3000))
 app.run(host="0.0.0.0", port=port)
-
