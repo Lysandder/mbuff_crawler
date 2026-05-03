@@ -125,7 +125,8 @@ def ensure_logged_in(page):
 
     if "login" in page.url.lower():
         page.goto(LOGIN_URL)
-        time.sleep(random.randint(3, 7))
+        # time.sleep(random.randint(3, 7))
+        page.wait_for_load_state("networkidle")
         page.fill(".form__field[type='email']", EMAIL)
         page.fill(".form__field[type='password']", PASSWORD)
         page.click(".login-button")
@@ -137,12 +138,20 @@ def read_chapter():  # 4 with a delay 2.5-3.5 minutes
     print("Reading chapters started")
     with sync_playwright() as p:
         browser = p.chromium.launch_persistent_context(
-            user_data_dir="./user_data", headless=True)
+            user_data_dir="./user_data",
+            headless=True,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+            ]
+        )
 
         cleanup(browser)
         page = browser.new_page()
 
         ensure_logged_in(page)
+        print("Ensured login")
 
         # with open("index.txt", 'r') as file:
         #     index = int(file.readline().strip())
@@ -158,7 +167,8 @@ def read_chapter():  # 4 with a delay 2.5-3.5 minutes
         for link in links:
             try:
                 page.goto(link)
-                time.sleep(random.randint(1, 3))
+                # time.sleep(random.randint(1, 3))
+                page.wait_for_load_state("networkidle")
                 js_command = """
                     read_status_send = false; 
                     is_read = true; 
@@ -175,7 +185,7 @@ def read_chapter():  # 4 with a delay 2.5-3.5 minutes
                 page.evaluate(js_command)
                 completed += 1
                 if link != links[-1]:
-                    time.sleep(random.randint(120, 180))
+                    time.sleep(60)
 
             except Exception:
                 ensure_logged_in(page)
@@ -194,15 +204,23 @@ def leave_comment():  # 10 with a delay 10-30 seconds
     print("Leaving comments started")
     with sync_playwright() as p:
         browser = p.chromium.launch_persistent_context(
-            user_data_dir="./user_data", headless=True)
+            user_data_dir="./user_data",
+            headless=True,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+            ]
+        )
 
         cleanup(browser)
         page = browser.new_page()
 
         ensure_logged_in(page)
+        print("Ensured login")
 
         page.goto(DECK_URL)
-        time.sleep(random.randint(3, 7))
+        # time.sleep(random.randint(3, 7))
         page.click(".comments__send-form--mini")
 
         for _ in range(10):
@@ -226,22 +244,32 @@ def watch_ads():
     print("Watching ADS started")
     with sync_playwright() as p:
         browser = p.chromium.launch_persistent_context(
-            user_data_dir="./user_data", headless=True)
+            user_data_dir="./user_data",
+            headless=True,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+            ]
+        )
 
         cleanup(browser)
         page = browser.new_page()
 
         ensure_logged_in(page)
+        print("Ensured login")
 
         page.goto(ADS_URL)
-        time.sleep(random.randint(3, 7))
+        page.wait_for_load_state("networkidle")
+        # time.sleep(random.randint(3, 7))
 
         for _ in range(3):
             try:
                 page.click(".user-quest__watch-ads-btn")
                 time.sleep(35)
                 page.click("[data-fullscreen-element-name='close-btn']")
-                time.sleep(random.randint(2, 4))
+                # time.sleep(random.randint(2, 4))
+                page.wait_for_load_state("networkidle")
             except Exception:
                 ensure_logged_in(page)
 
