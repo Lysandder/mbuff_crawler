@@ -45,15 +45,15 @@ def connect_db():
 
 
 def install_chromium():
-    print('=' * 100)
-    print("Starting Installing Dependencies...")
-    subprocess.run([
-        "apt-get", "install", "-y",
-        "libnss3", "libatk1.0-0", "libatk-bridge2.0-0",
-        "libcups2", "libdrm2", "libxkbcommon0", "libxcomposite1",
-        "libxdamage1", "libxfixes3", "libxrandr2", "libgbm1",
-        "libasound2"
-    ], check=True)
+    # print('=' * 100)
+    # print("Starting Installing Dependencies...")
+    # subprocess.run([
+    #     "apt-get", "install", "-y",
+    #     "libnss3", "libatk1.0-0", "libatk-bridge2.0-0",
+    #     "libcups2", "libdrm2", "libxkbcommon0", "libxcomposite1",
+    #     "libxdamage1", "libxfixes3", "libxrandr2", "libgbm1",
+    #     "libasound2"
+    # ], check=True)
     # subprocess.run(["playwright", "install-deps", "chromium"], check=True)
     print('=' * 100)
     print("Starting Installing Chromium...")
