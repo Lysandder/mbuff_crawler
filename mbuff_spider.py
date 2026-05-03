@@ -322,8 +322,9 @@ def watch_ads():
 # thread = threading.Thread(target=install_chromium, daemon=True)
 # thread.start()
 
+scheduling()
+
 # if __name__ == "__main__":
 port = int(os.environ.get("PORT", 3000))
 app.run(host="0.0.0.0", port=port)
 
-scheduling()
