@@ -57,7 +57,9 @@ def install_chromium():
     # subprocess.run(["playwright", "install-deps", "chromium"], check=True)
     print('=' * 100)
     print("Starting Installing Chromium...")
-    subprocess.run(["playwright", "install", "chromium"], check=True)
+    env = os.environ.copy()
+    env["PLAYWRIGHT_BROWSERS_PATH"] = "/opt/render/project/src/.playwright-browsers"
+    subprocess.run(["playwright", "install", "chromium"], check=True, env=env, timeout=300)
     print("Finished Installing Chromium")
     print('=' * 100)
 
