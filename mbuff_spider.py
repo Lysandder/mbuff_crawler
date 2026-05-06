@@ -146,15 +146,27 @@ def cleanup(browser):
 
 
 def ensure_logged_in(page):
+    print_cyan(f"  [LOGIN CHECK] navigating to profile: {PROFILE_URL}")
     page.goto(PROFILE_URL)
+    print(f"  [LOGIN CHECK] landed on: {page.url}")
 
     if "login" in page.url.lower():
+        print("  [LOGIN] Not logged in — attempting login...")
         page.goto(LOGIN_URL)
         time.sleep(random.randint(3, 7))
         page.fill(".form__field[type='email']", EMAIL)
         page.fill(".form__field[type='password']", PASSWORD)
         page.click(".login-button")
         page.wait_for_timeout(random.randint(5182, 7382))  # in ms
+        print(f"  [LOGIN] After login, url is: {page.url}")
+
+        if "login" in page.url.lower():
+            print(
+                "  [LOGIN FAILED] Still on login page — credentials wrong or blocked?")
+        else:
+            print("  [LOGIN SUCCESS]")
+    else:
+        print("  [LOGIN CHECK] Already logged in")
 
 
 @log_job
