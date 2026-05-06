@@ -12,6 +12,7 @@ import subprocess
 import sys
 import traceback
 import functools
+import shutil
 
 import os
 from dotenv import load_dotenv
@@ -25,18 +26,22 @@ ADS_URL = os.getenv("ADS_URL")
 SHOJOS_URL = os.getenv("SHOJOS_URL")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+
 def print_cyan(text: str):
     print(f"\033[96m{text}\033[0m")
 
-# Check of env variables
-REQUIRED_ENV_VARS = ["PROFILE_URL", "LOGIN_URL", "EMAIL", "PASSWORD", "DECK_URL", "ADS_URL", "SHOJOS_URL", "DATABASE_URL"]
 
-for key in REQUIRED_ENV_VARS):
+# Check of env variables
+REQUIRED_ENV_VARS = ["PROFILE_URL", "LOGIN_URL", "EMAIL",
+                     "PASSWORD", "DECK_URL", "ADS_URL", "SHOJOS_URL", "DATABASE_URL"]
+
+for key in REQUIRED_ENV_VARS:
     val = os.getenv(key)
     if not val:
         print_cyan(f"[ENV ERROR] Missing env var: {key}")
     else:
-        print_cyan(f"[ENV OK] {key} = {val[:10]}...")  # partial, avoids leaking secrets
+        # partial, avoids leaking secrets
+        print_cyan(f"[ENV OK] {key} = {val[:10]}...")
 
 WORDS_LIST = ["Good", "Bad", "New", "Else"]
 
@@ -83,7 +88,6 @@ def log_job(fn):
     return wrapper
 
 
-
 executors = {
     'default': ThreadPoolExecutor(max_workers=1)  # only 1 job runs at a time
 }
@@ -97,10 +101,14 @@ def home():
 
 
 def connect_db():
-    # if not DATABASE_URL:
-    #     print_cyan("ERROR" * 10)
-    #     print_cyan("Something is wrong with the DB URL");
-    return psycopg2.connect(DATABASE_URL)
+    print_cyan(f"  [DB] Connecting...")
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        print_cyan(f"  [DB] Connected OK")
+        return conn
+    except Exception as e:
+        print_cyan(f"  [DB ERROR] {e}")
+        raise
 
 
 def scheduling():
@@ -142,6 +150,20 @@ def install_chromium():
     print_cyan("Finished Installing Chromium")
 
     scheduling()
+
+
+def check_chromium():
+    path = shutil.which("chromium") or shutil.which("chromium-browser")
+    print_cyan(f"  [CHROMIUM] which chromium: {path}")
+    pw_path = "/opt/render/project/src/.playwright-browsers"
+    print_cyan(f"  [CHROMIUM] browsers path exists: {os.path.exists(pw_path)}")
+    if os.path.exists(pw_path):
+        print_cyan(f"  [CHROMIUM] contents: {os.listdir(pw_path)}")
+    else:
+        print_cyan("[CHROMIUM] Browsers path does not exist!")
+    if not path and not os.path.exists(pw_path):
+        print_cyan(
+            "[CHROMIUM] Chromium is NOT installed anywhere — jobs will fail!")
 
 
 def get_index():
@@ -187,35 +209,33 @@ def ensure_logged_in(page):
     print_cyan(f"  [LOGIN CHECK] navigating to profile: {PROFILE_URL}")
     # page.goto(PROFILE_URL)
     safe_goto(page, PROFILE_URL)
-    print(f"  [LOGIN CHECK] landed on: {page.url}")
+    print_cyan(f"  [LOGIN CHECK] landed on: {page.url}")
 
     if "login" in page.url.lower():
-        print("  [LOGIN] Not logged in — attempting login...")
+        print_cyan("  [LOGIN] Not logged in — attempting login...")
         # page.goto(LOGIN_URL)
         safe_goto(page, LOGIN_URL)
         time.sleep(random.randint(3, 7))
         # page.fill(".form__field[type='email']", EMAIL)
         safe_fill(page, ".form__field[type='email']", EMAIL)
         # page.fill(".form__field[type='password']", PASSWORD)
-        safe_fill(page, "form__field[type='password']", PASSWORD)
+        safe_fill(page, ".form__field[type='password']", PASSWORD)
         # page.click(".login-button")
         safe_click(page, ".login-button")
         page.wait_for_timeout(random.randint(5182, 7382))  # in ms
-        print(f"  [LOGIN] After login, url is: {page.url}")
+        print_cyan(f"  [LOGIN] After login, url is: {page.url}")
 
         if "login" in page.url.lower():
-            print(
+            print_cyan(
                 "  [LOGIN FAILED] Still on login page — credentials wrong or blocked?")
         else:
-            print("  [LOGIN SUCCESS]")
+            print_cyan("  [LOGIN SUCCESS]")
     else:
-        print("  [LOGIN CHECK] Already logged in")
+        print_cyan("  [LOGIN CHECK] Already logged in")
 
 
-@log_job
-def read_chapter():  # 4 with a delay 2.5-3.5 minutes
-    print_cyan("Reading chapters started")
-    with sync_playwright() as p:
+def get_browser(p):
+    try:
         browser = p.chromium.launch_persistent_context(
             user_data_dir="./user_data",
             headless=True,
@@ -225,6 +245,20 @@ def read_chapter():  # 4 with a delay 2.5-3.5 minutes
                 "--disable-dev-shm-usage",
             ]
         )
+
+        print_cyan("  [BROWSER] Launched OK")
+        return browser
+    except Exception as e:
+        print_cyan(f"  [BROWSER FAIL] Could not launch browser: {e}")
+        print_cyan(traceback.format_exc())
+        return
+
+
+@log_job
+def read_chapter():  # 4 with a delay 2.5-3.5 minutes
+    print_cyan("Reading chapters started")
+    with sync_playwright() as p:
+        browser = get_browser(p)
 
         cleanup(browser)
         page = browser.new_page()
@@ -282,15 +316,7 @@ def leave_comment():  # 10 with a delay 10-30 seconds
 
     print_cyan("Leaving comments started")
     with sync_playwright() as p:
-        browser = p.chromium.launch_persistent_context(
-            user_data_dir="./user_data",
-            headless=True,
-            args=[
-                "--disable-blink-features=AutomationControlled",
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-            ]
-        )
+        browser = get_browser(p)
 
         cleanup(browser)
         page = browser.new_page()
@@ -307,7 +333,8 @@ def leave_comment():  # 10 with a delay 10-30 seconds
         for _ in range(10):
             try:
                 # page.fill(".comments__send-form textarea", "Something " + WORDS_LIST[random.randint(0, 3)])
-                safe_fill(page, ".comments__send-form textarea", "Something " + WORDS_LIST[random.randint(0, 3)])
+                safe_fill(page, ".comments__send-form textarea",
+                          "Something " + WORDS_LIST[random.randint(0, 3)])
                 # page.click(".comments__send-btn")
                 safe_click(page, ".comments__send-btn")
 
@@ -325,15 +352,7 @@ def watch_ads():
 
     print_cyan("Watching ADS started")
     with sync_playwright() as p:
-        browser = p.chromium.launch_persistent_context(
-            user_data_dir="./user_data",
-            headless=True,
-            args=[
-                "--disable-blink-features=AutomationControlled",
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-            ]
-        )
+        browser = get_browser(p)
 
         cleanup(browser)
         page = browser.new_page()
@@ -349,7 +368,7 @@ def watch_ads():
             try:
                 # page.click(".user-quest__watch-ads-btn")
                 safe_click(page, ".user-quest__watch-ads-btn")
-                time.sleep(35) # ads last either 20 or 30 seconds
+                time.sleep(35)  # ads last either 20 or 30 seconds
                 # page.click("[data-fullscreen-element-name='close-btn']")
                 safe_click(page, "[data-fullscreen-element-name='close-btn']")
                 time.sleep(random.randint(2, 4))
