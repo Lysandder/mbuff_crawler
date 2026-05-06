@@ -453,7 +453,11 @@ def watch_ads():
 # thread = threading.Thread(target=install_chromium, daemon=True)
 # thread.start()
 
+print_cyan("[STARTUP] Checking Chromium before scheduling...")
+check_chromium()
+print_cyan("[STARTUP] Starting scheduler...")
 scheduling()
+print_cyan("[STARTUP] Scheduler started. Flask starting...")
 
 # if __name__ == "__main__":
 port = int(os.environ.get("PORT", 3000))
