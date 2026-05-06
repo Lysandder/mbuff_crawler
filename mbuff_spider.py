@@ -28,6 +28,34 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 WORDS_LIST = ["Good", "Bad", "New", "Else"]
 
 
+def safe_goto(page, url, label=""):
+    print_cyan(f"  [GOTO] Going to {label or url}")
+    page.goto(url)
+    print_cyan(f"  [GOTO OK] title='{page.title()}' url='{page.url}'")
+
+
+def safe_click(page, selector, label=""):
+    print_cyan(f"  [CLICK] {label or selector}")
+    try:
+        page.wait_for_selector(selector, timeout=10000)
+        page.click(selector)
+        print_cyan(f"  [CLICK OK] {label or selector}")
+    except Exception as e:
+        print_cyan(f"  [CLICK FAIL] {label or selector}: {e}")
+        raise
+
+
+def safe_fill(page, selector, value, label=""):
+    print_cyan(f"  [FILL] {label or selector}")
+    try:
+        page.wait_for_selector(selector, timeout=10000)
+        page.fill(selector, value)
+        print_cyan(f"  [FILL OK]")
+    except Exception as e:
+        print_cyan(f"  [FILL FAIL] {label or selector}: {e}")
+        raise
+
+
 def log_job(fn):
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
@@ -147,16 +175,21 @@ def cleanup(browser):
 
 def ensure_logged_in(page):
     print_cyan(f"  [LOGIN CHECK] navigating to profile: {PROFILE_URL}")
-    page.goto(PROFILE_URL)
+    # page.goto(PROFILE_URL)
+    safe_goto(page, PROFILE_URL)
     print(f"  [LOGIN CHECK] landed on: {page.url}")
 
     if "login" in page.url.lower():
         print("  [LOGIN] Not logged in — attempting login...")
-        page.goto(LOGIN_URL)
+        # page.goto(LOGIN_URL)
+        safe_goto(page, LOGIN_URL)
         time.sleep(random.randint(3, 7))
-        page.fill(".form__field[type='email']", EMAIL)
-        page.fill(".form__field[type='password']", PASSWORD)
-        page.click(".login-button")
+        # page.fill(".form__field[type='email']", EMAIL)
+        safe_fill(page, ".form__field[type='email']", EMAIL)
+        # page.fill(".form__field[type='password']", PASSWORD)
+        safe_fill(page, "form__field[type='password']", PASSWORD)
+        # page.click(".login-button")
+        safe_click(page, ".login-button")
         page.wait_for_timeout(random.randint(5182, 7382))  # in ms
         print(f"  [LOGIN] After login, url is: {page.url}")
 
@@ -202,7 +235,8 @@ def read_chapter():  # 4 with a delay 2.5-3.5 minutes
         completed = 0
         for link in links:
             try:
-                page.goto(link)
+                # page.goto(link)
+                safe_goto(page, link)
                 time.sleep(random.randint(1, 3))
                 js_command = """
                     read_status_send = false; 
@@ -254,15 +288,18 @@ def leave_comment():  # 10 with a delay 10-30 seconds
         ensure_logged_in(page)
         print_cyan("Ensured login")
 
-        page.goto(DECK_URL)
+        # page.goto(DECK_URL)
+        safe_goto(page, DECK_URL)
         # time.sleep(random.randint(3, 7))
-        page.click(".comments__send-form--mini")
+        # page.click(".comments__send-form--mini")
+        safe_click(page, ".comments__send-form--mini")
 
         for _ in range(10):
             try:
-                page.fill(".comments__send-form textarea",
-                          "Something " + WORDS_LIST[random.randint(0, 3)])
-                page.click(".comments__send-btn")
+                # page.fill(".comments__send-form textarea", "Something " + WORDS_LIST[random.randint(0, 3)])
+                safe_fill(page, ".comments__send-form textarea", "Something " + WORDS_LIST[random.randint(0, 3)])
+                # page.click(".comments__send-btn")
+                safe_click(page, ".comments__send-btn")
 
                 delay = random.randint(10, 30)
                 time.sleep(delay)
@@ -294,18 +331,22 @@ def watch_ads():
         ensure_logged_in(page)
         print_cyan("Ensured login")
 
-        page.goto(ADS_URL)
+        # page.goto(ADS_URL)
+        safe_goto(page, ADS_URL)
         time.sleep(random.randint(3, 7))
 
         for _ in range(3):
             try:
-                page.click(".user-quest__watch-ads-btn")
-                time.sleep(35)
-                page.click("[data-fullscreen-element-name='close-btn']")
+                # page.click(".user-quest__watch-ads-btn")
+                safe_click(page, ".user-quest__watch-ads-btn")
+                time.sleep(35) # ads last either 20 or 30 seconds
+                # page.click("[data-fullscreen-element-name='close-btn']")
+                safe_click(page, "[data-fullscreen-element-name='close-btn']")
                 time.sleep(random.randint(2, 4))
             except Exception:
                 ensure_logged_in(page)
-                page.goto(ADS_URL)
+                # page.goto(ADS_URL)
+                safe_goto(page, ADS_URL)
 
         browser.close()
     print_cyan("Finished Watching ADS")
@@ -321,7 +362,7 @@ def watch_ads():
 #
 #         ensure_logged_in(page)
 #
-#         page.goto(SHOJOS_URL)
+#         page.goto(SHOJOS_URL) # not safe goto
 #         time.sleep(random.randint(3, 7))
 #
 #         next_page_button = page.locator(
@@ -335,7 +376,7 @@ def watch_ads():
 #             with open("names.txt", 'a') as file:
 #                 for link in names_links:
 #                     file.write(link + "\n")
-#             next_page_button.click()
+#             next_page_button.click() # not safe click
 #             time.sleep(random.randint(2, 5))
 #
 #         browser.close()
@@ -354,7 +395,7 @@ def watch_ads():
 #         with open("names.txt", "r") as names_file:
 #             for line in names_file:
 #                 # for line in islice(names_file, 204, None):
-#                 page.goto(line.strip())
+#                 page.goto(line.strip()) # not safe goto
 #                 time.sleep(random.randint(1, 5))
 #
 #                 if page.is_disabled("button[data-page='chapters']"):
@@ -362,7 +403,7 @@ def watch_ads():
 #                     print_cyan(line)
 #                     print_cyan("=" * 100)
 #                     continue
-#                 page.click("button[data-page='chapters']")
+#                 page.click("button[data-page='chapters']") # not safe click
 #
 #                 chapters_links = page.eval_on_selector_all(
 #                     ".chapters__list a.chapters__item",
