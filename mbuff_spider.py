@@ -25,6 +25,19 @@ ADS_URL = os.getenv("ADS_URL")
 SHOJOS_URL = os.getenv("SHOJOS_URL")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+def print_cyan(text: str):
+    print(f"\033[96m{text}\033[0m")
+
+# Check of env variables
+REQUIRED_ENV_VARS = ["PROFILE_URL", "LOGIN_URL", "EMAIL", "PASSWORD", "DECK_URL", "ADS_URL", "SHOJOS_URL", "DATABASE_URL"]
+
+for key in REQUIRED_ENV_VARS):
+    val = os.getenv(key)
+    if not val:
+        print_cyan(f"[ENV ERROR] Missing env var: {key}")
+    else:
+        print_cyan(f"[ENV OK] {key} = {val[:10]}...")  # partial, avoids leaking secrets
+
 WORDS_LIST = ["Good", "Bad", "New", "Else"]
 
 
@@ -69,9 +82,6 @@ def log_job(fn):
             print_cyan(traceback.format_exc())
     return wrapper
 
-
-def print_cyan(text: str):
-    print(f"\033[96m{text}\033[0m")
 
 
 executors = {
