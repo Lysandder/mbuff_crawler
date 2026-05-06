@@ -25,6 +25,11 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 WORDS_LIST = ["Good", "Bad", "New", "Else"]
 
+
+def print_cyan(text: str):
+    print(f"\033[96m{text}\033[0m")
+
+
 executors = {
     'default': ThreadPoolExecutor(max_workers=1)  # only 1 job runs at a time
 }
@@ -39,30 +44,33 @@ def home():
 
 def connect_db():
     # if not DATABASE_URL:
-    #     print("ERROR" * 10)
-    #     print("Something is wrong with the DB URL");
+    #     print_cyan("ERROR" * 10)
+    #     print_cyan("Something is wrong with the DB URL");
     return psycopg2.connect(DATABASE_URL)
 
 
 def scheduling():
     # SCHEDULING
-    scheduler = BackgroundScheduler(timezone="Asia/Tashkent", executors=executors)
+    scheduler = BackgroundScheduler(
+        timezone="Asia/Tashkent", executors=executors)
     start_time = datetime.now()
     minutes = (start_time.minute + 30) % 60
-    scheduler.add_job(read_chapter, 'interval', hours=1, next_run_time=start_time, max_instances=1)
-    scheduler.add_job(leave_comment, 'cron', hour=3, minute=minutes, max_instances=1)
-    scheduler.add_job(watch_ads, 'cron', hour=4, minute=minutes, max_instances=1)
+    scheduler.add_job(read_chapter, 'interval', hours=1,
+                      next_run_time=start_time, max_instances=1)
+    scheduler.add_job(leave_comment, 'cron', hour=3,
+                      minute=minutes, max_instances=1)
+    scheduler.add_job(watch_ads, 'cron', hour=4,
+                      minute=minutes, max_instances=1)
     scheduler.start()
-    print('=' * 100)
-    print(f"Reading chapters time: {start_time.minute}")
-    print(f"Leave comments time: 3:{minutes}")
-    print(f"Watch ADS time: 4:{minutes}")
-    print('=' * 100)
+
+    print_cyan(f"Reading chapters time: {start_time.minute}")
+    print_cyan(f"Leave comments time: 3:{minutes}")
+    print_cyan(f"Watch ADS time: 4:{minutes}")
 
 
 def install_chromium():
-    # print('=' * 100)
-    # print("Starting Installing Dependencies...")
+    #
+    # print_cyan("Starting Installing Dependencies...")
     # subprocess.run([
     #     "apt-get", "install", "-y",
     #     "libnss3", "libatk1.0-0", "libatk-bridge2.0-0",
@@ -71,13 +79,14 @@ def install_chromium():
     #     "libasound2"
     # ], check=True)
     # subprocess.run(["playwright", "install-deps", "chromium"], check=True)
-    print('=' * 100)
-    print("Starting Installing Chromium...")
+
+    print_cyan("Starting Installing Chromium...")
     env = os.environ.copy()
     env["PLAYWRIGHT_BROWSERS_PATH"] = "/opt/render/project/src/.playwright-browsers"
-    subprocess.run(["playwright", "install", "chromium"], check=True, env=env, timeout=300)
-    print("Finished Installing Chromium")
-    print('=' * 100)
+    subprocess.run(["playwright", "install", "chromium"],
+                   check=True, env=env, timeout=300)
+    print_cyan("Finished Installing Chromium")
+
     scheduling()
 
 
@@ -125,8 +134,7 @@ def ensure_logged_in(page):
 
     if "login" in page.url.lower():
         page.goto(LOGIN_URL)
-        # time.sleep(random.randint(3, 7))
-        page.wait_for_load_state("networkidle")
+        time.sleep(random.randint(3, 7))
         page.fill(".form__field[type='email']", EMAIL)
         page.fill(".form__field[type='password']", PASSWORD)
         page.click(".login-button")
@@ -134,8 +142,8 @@ def ensure_logged_in(page):
 
 
 def read_chapter():  # 4 with a delay 2.5-3.5 minutes
-    print('=' * 100)
-    print("Reading chapters started")
+
+    print_cyan("Reading chapters started")
     with sync_playwright() as p:
         browser = p.chromium.launch_persistent_context(
             user_data_dir="./user_data",
@@ -151,7 +159,7 @@ def read_chapter():  # 4 with a delay 2.5-3.5 minutes
         page = browser.new_page()
 
         ensure_logged_in(page)
-        print("Ensured login")
+        print_cyan("Ensured login")
 
         # with open("index.txt", 'r') as file:
         #     index = int(file.readline().strip())
@@ -167,8 +175,7 @@ def read_chapter():  # 4 with a delay 2.5-3.5 minutes
         for link in links:
             try:
                 page.goto(link)
-                # time.sleep(random.randint(1, 3))
-                page.wait_for_load_state("networkidle")
+                time.sleep(random.randint(1, 3))
                 js_command = """
                     read_status_send = false; 
                     is_read = true; 
@@ -195,13 +202,12 @@ def read_chapter():  # 4 with a delay 2.5-3.5 minutes
         set_index(index + completed)
 
         browser.close()
-    print("Finished Reading chapters")
-    print('=' * 100)
+    print_cyan("Finished Reading chapters")
 
 
 def leave_comment():  # 10 with a delay 10-30 seconds
-    print('=' * 100)
-    print("Leaving comments started")
+
+    print_cyan("Leaving comments started")
     with sync_playwright() as p:
         browser = p.chromium.launch_persistent_context(
             user_data_dir="./user_data",
@@ -217,7 +223,7 @@ def leave_comment():  # 10 with a delay 10-30 seconds
         page = browser.new_page()
 
         ensure_logged_in(page)
-        print("Ensured login")
+        print_cyan("Ensured login")
 
         page.goto(DECK_URL)
         # time.sleep(random.randint(3, 7))
@@ -235,13 +241,12 @@ def leave_comment():  # 10 with a delay 10-30 seconds
                 ensure_logged_in(page)
 
         browser.close()
-    print("Finished Leaving comments")
-    print('=' * 100)
+    print_cyan("Finished Leaving comments")
 
 
 def watch_ads():
-    print('=' * 100)
-    print("Watching ADS started")
+
+    print_cyan("Watching ADS started")
     with sync_playwright() as p:
         browser = p.chromium.launch_persistent_context(
             user_data_dir="./user_data",
@@ -257,25 +262,23 @@ def watch_ads():
         page = browser.new_page()
 
         ensure_logged_in(page)
-        print("Ensured login")
+        print_cyan("Ensured login")
 
         page.goto(ADS_URL)
-        page.wait_for_load_state("networkidle")
-        # time.sleep(random.randint(3, 7))
+        time.sleep(random.randint(3, 7))
 
         for _ in range(3):
             try:
                 page.click(".user-quest__watch-ads-btn")
                 time.sleep(35)
                 page.click("[data-fullscreen-element-name='close-btn']")
-                # time.sleep(random.randint(2, 4))
-                page.wait_for_load_state("networkidle")
+                time.sleep(random.randint(2, 4))
             except Exception:
                 ensure_logged_in(page)
+                page.goto(ADS_URL)
 
         browser.close()
-    print("Finished Watching ADS")
-    print('=' * 100)
+    print_cyan("Finished Watching ADS")
 
 
 # def scrape_names():
@@ -325,9 +328,9 @@ def watch_ads():
 #                 time.sleep(random.randint(1, 5))
 #
 #                 if page.is_disabled("button[data-page='chapters']"):
-#                     print("=" * 100)
-#                     print(line)
-#                     print("=" * 100)
+#                     print_cyan("=" * 100)
+#                     print_cyan(line)
+#                     print_cyan("=" * 100)
 #                     continue
 #                 page.click("button[data-page='chapters']")
 #
@@ -355,4 +358,3 @@ scheduling()
 # if __name__ == "__main__":
 port = int(os.environ.get("PORT", 3000))
 app.run(host="0.0.0.0", port=port)
-
