@@ -10,6 +10,8 @@ import flask
 import psycopg2
 import subprocess
 import sys
+import traceback
+import functools
 
 import os
 from dotenv import load_dotenv
@@ -24,6 +26,20 @@ SHOJOS_URL = os.getenv("SHOJOS_URL")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 WORDS_LIST = ["Good", "Bad", "New", "Else"]
+
+
+def log_job(fn):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        print_cyan(f"[JOB START] {fn.__name__} at {datetime.now()}")
+        try:
+            result = fn(*args, **kwargs)
+            print_cyan(f"[JOB OK] {fn.__name__} at {datetime.now()}")
+            return result
+        except Exception as e:
+            print_cyan(f"[JOB FAILED] {fn.__name__}: {e}")
+            print_cyan(traceback.format_exc())
+    return wrapper
 
 
 def print_cyan(text: str):
@@ -141,8 +157,8 @@ def ensure_logged_in(page):
         page.wait_for_timeout(random.randint(5182, 7382))  # in ms
 
 
+@log_job
 def read_chapter():  # 4 with a delay 2.5-3.5 minutes
-
     print_cyan("Reading chapters started")
     with sync_playwright() as p:
         browser = p.chromium.launch_persistent_context(
@@ -205,6 +221,7 @@ def read_chapter():  # 4 with a delay 2.5-3.5 minutes
     print_cyan("Finished Reading chapters")
 
 
+@log_job
 def leave_comment():  # 10 with a delay 10-30 seconds
 
     print_cyan("Leaving comments started")
@@ -244,6 +261,7 @@ def leave_comment():  # 10 with a delay 10-30 seconds
     print_cyan("Finished Leaving comments")
 
 
+@log_job
 def watch_ads():
 
     print_cyan("Watching ADS started")
