@@ -22,7 +22,7 @@ LOGIN_URL = os.getenv("LOGIN_URL")
 EMAIL = os.getenv("EMAIL")
 PASSWORD = os.getenv("PASSWORD")
 DECK_URL = os.getenv("DECK_URL")
-ADS_URL = os.getenv("ADS_URL")
+TRANSACTIONS_URL = os.getenv("ADS_URL")
 SHOJOS_URL = os.getenv("SHOJOS_URL")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -340,7 +340,6 @@ def leave_comments():  # 10 with a delay 10-30 seconds
 
 @log_job
 def watch_ads():
-
     print_cyan("Watching ADS started")
     with sync_playwright() as p:
         browser = get_browser(p)
@@ -351,8 +350,8 @@ def watch_ads():
         ensure_logged_in(page)
         print_cyan("Ensured login")
 
-        # page.goto(ADS_URL)
-        safe_goto(page, ADS_URL)
+        # page.goto(TRANSACTIONS_URL)
+        safe_goto(page, TRANSACTIONS_URL)
         time.sleep(random.randint(3, 7))
 
         for i in range(3):
@@ -366,11 +365,37 @@ def watch_ads():
                 time.sleep(random.randint(2, 4))
             except Exception:
                 ensure_logged_in(page)
-                # page.goto(ADS_URL)
-                safe_goto(page, ADS_URL)
+                # page.goto(TRANSACTIONS_URL)
+                safe_goto(page, TRANSACTIONS_URL)
 
         browser.close()
     print_cyan("Finished Watching ADS")
+
+
+@log_job
+def get_daily_calendar_gift():
+    print_cyan("Claiming Daily Calendar Gift")
+    with sync_playwright() as p:
+        browser = get_browser(p)
+
+        cleanup(browser)
+        page = browser.new_page()
+
+        ensure_logged_in(page)
+        print_cyan("Ensured login")
+
+        safe_goto(page, TRANSACTIONS_URL)
+        time.sleep(random.randint(3, 7))
+
+        try:
+            safe_click(page, ".daily-rewards-btn")
+            time.sleep(random.randint(3, 7))
+            safe_click(page, ".daily-rewards-item-exp--active")
+        except Exception:
+            print_red("Calendar Error - Maybe could not find the button")
+
+        browser.close()
+    print_cyan("FINISHED Daily Calendar Gift")
 
 
 # def scrape_names():
@@ -453,6 +478,7 @@ def watch_ads():
 
 leave_comments()
 watch_ads()
+get_daily_calendar_gift()
 
 # if __name__ == "__main__":
 port = int(os.environ.get("PORT", 3000))
