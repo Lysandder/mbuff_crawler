@@ -31,6 +31,10 @@ def print_cyan(text: str):
     print(f"\033[96m{text}\033[0m")
 
 
+def print_red(text: str):
+    print(f"\033[91m{text}\033[0m")
+
+
 # Check of env variables
 REQUIRED_ENV_VARS = ["PROFILE_URL", "LOGIN_URL", "EMAIL",
                      "PASSWORD", "DECK_URL", "ADS_URL", "SHOJOS_URL", "DATABASE_URL"]
@@ -38,39 +42,33 @@ REQUIRED_ENV_VARS = ["PROFILE_URL", "LOGIN_URL", "EMAIL",
 for key in REQUIRED_ENV_VARS:
     val = os.getenv(key)
     if not val:
-        print_cyan(f"[ENV ERROR] Missing env var: {key}")
-    else:
-        # partial, avoids leaking secrets
-        print_cyan(f"[ENV OK] {key} = {val[:10]}...")
+        print_red(f"[ENV ERROR] Missing env var: {key}")
 
 WORDS_LIST = ["Good", "Bad", "New", "Else"]
 
 
 def safe_goto(page, url, label=""):
-    print_cyan(f"  [GOTO] Going to {label or url}")
-    page.goto(url)
-    print_cyan(f"  [GOTO OK] title='{page.title()}' url='{page.url}'")
+    try:
+        page.goto(url)
+    except Exception as e:
+        print_red(f"[GOTO ERROR] title='{page.title()}' url='{page.url}': \n{e}")
 
 
 def safe_click(page, selector, label=""):
-    print_cyan(f"  [CLICK] {label or selector}")
     try:
         page.wait_for_selector(selector, timeout=10000)
         page.click(selector)
-        print_cyan(f"  [CLICK OK] {label or selector}")
     except Exception as e:
-        print_cyan(f"  [CLICK FAIL] {label or selector}: {e}")
+        print_red(f"[CLICK ERROR] {label or selector}: {e}")
         raise
 
 
 def safe_fill(page, selector, value, label=""):
-    print_cyan(f"  [FILL] {label or selector}")
     try:
         page.wait_for_selector(selector, timeout=10000)
         page.fill(selector, value)
-        print_cyan(f"  [FILL OK]")
     except Exception as e:
-        print_cyan(f"  [FILL FAIL] {label or selector}: {e}")
+        print_red(f"[FILL ERROR] {label or selector}: {e}")
         raise
 
 
@@ -83,8 +81,8 @@ def log_job(fn):
             print_cyan(f"[JOB OK] {fn.__name__} at {datetime.now()}")
             return result
         except Exception as e:
-            print_cyan(f"[JOB FAILED] {fn.__name__}: {e}")
-            print_cyan(traceback.format_exc())
+            print_red(f"[JOB FAILED] {fn.__name__}: {e}")
+            print_red(traceback.format_exc())
     return wrapper
 
 
@@ -101,13 +99,11 @@ def home():
 
 
 def connect_db():
-    print_cyan(f"  [DB] Connecting...")
     try:
         conn = psycopg2.connect(DATABASE_URL)
-        print_cyan(f"  [DB] Connected OK")
         return conn
     except Exception as e:
-        print_cyan(f"  [DB ERROR] {e}")
+        print_red(f"[DB CONNECTION ERROR] {e}")
         raise
 
 
@@ -117,9 +113,9 @@ def scheduling():
         timezone="Asia/Tashkent", executors=executors)
     start_time = datetime.now()
     minutes = (start_time.minute + 30) % 60
-    scheduler.add_job(read_chapter, 'interval', hours=1,
+    scheduler.add_job(read_chapters, 'interval', hours=1,
                       next_run_time=start_time, max_instances=1)
-    scheduler.add_job(leave_comment, 'cron', hour=3,
+    scheduler.add_job(leave_comments, 'cron', hour=3,
                       minute=minutes, max_instances=1)
     scheduler.add_job(watch_ads, 'cron', hour=4,
                       minute=minutes, max_instances=1)
@@ -206,13 +202,11 @@ def cleanup(browser):
 
 
 def ensure_logged_in(page):
-    print_cyan(f"  [LOGIN CHECK] navigating to profile: {PROFILE_URL}")
     # page.goto(PROFILE_URL)
     safe_goto(page, PROFILE_URL)
-    print_cyan(f"  [LOGIN CHECK] landed on: {page.url}")
 
     if "login" in page.url.lower():
-        print_cyan("  [LOGIN] Not logged in — attempting login...")
+        print_cyan("[LOGIN] Not logged in — attempting login...")
         # page.goto(LOGIN_URL)
         safe_goto(page, LOGIN_URL)
         time.sleep(random.randint(3, 7))
@@ -223,22 +217,17 @@ def ensure_logged_in(page):
         # page.click(".login-button")
         safe_click(page, ".login-button")
         page.wait_for_timeout(random.randint(5182, 7382))  # in ms
-        print_cyan(f"  [LOGIN] After login, url is: {page.url}")
 
         if "login" in page.url.lower():
-            print_cyan(
-                "  [LOGIN FAILED] Still on login page — credentials wrong or blocked?")
-        else:
-            print_cyan("  [LOGIN SUCCESS]")
-    else:
-        print_cyan("  [LOGIN CHECK] Already logged in")
+            print_red(
+                "[LOGIN FAILED] Still on login page — credentials wrong or blocked?")
 
 
 def get_browser(p):
     try:
         browser = p.chromium.launch_persistent_context(
             user_data_dir="./user_data",
-            headless=True,
+            headless=False,
             args=[
                 "--disable-blink-features=AutomationControlled",
                 "--no-sandbox",
@@ -246,16 +235,15 @@ def get_browser(p):
             ]
         )
 
-        print_cyan("  [BROWSER] Launched OK")
         return browser
     except Exception as e:
-        print_cyan(f"  [BROWSER FAIL] Could not launch browser: {e}")
-        print_cyan(traceback.format_exc())
+        print_red(f"  [BROWSER FAIL] Could not launch browser: {e}")
+        print_red(traceback.format_exc())
         return
 
 
 @log_job
-def read_chapter():  # 4 with a delay 2.5-3.5 minutes
+def read_chapters():  # 4 with a delay 2.5-3.5 minutes
     print_cyan("Reading chapters started")
     with sync_playwright() as p:
         browser = get_browser(p)
@@ -264,7 +252,7 @@ def read_chapter():  # 4 with a delay 2.5-3.5 minutes
         page = browser.new_page()
 
         ensure_logged_in(page)
-        print_cyan("Ensured login")
+        print_cyan("LOGIN OK")
 
         # with open("index.txt", 'r') as file:
         #     index = int(file.readline().strip())
@@ -297,6 +285,7 @@ def read_chapter():  # 4 with a delay 2.5-3.5 minutes
                 """
                 page.evaluate(js_command)
                 completed += 1
+                print_cyan(f"Read {completed} chapter(s)")
                 if link != links[-1]:
                     time.sleep(60)
 
@@ -312,7 +301,7 @@ def read_chapter():  # 4 with a delay 2.5-3.5 minutes
 
 
 @log_job
-def leave_comment():  # 10 with a delay 10-30 seconds
+def leave_comments():  # 10 with a delay 10-30 seconds
 
     print_cyan("Leaving comments started")
     with sync_playwright() as p:
@@ -330,13 +319,15 @@ def leave_comment():  # 10 with a delay 10-30 seconds
         # page.click(".comments__send-form--mini")
         safe_click(page, ".comments__send-form--mini")
 
-        for _ in range(10):
+        for i in range(10):
             try:
                 # page.fill(".comments__send-form textarea", "Something " + WORDS_LIST[random.randint(0, 3)])
                 safe_fill(page, ".comments__send-form textarea",
                           "Something " + WORDS_LIST[random.randint(0, 3)])
                 # page.click(".comments__send-btn")
                 safe_click(page, ".comments__send-btn")
+
+                print_cyan(f"Left {i + 1} comment(s)")
 
                 delay = random.randint(10, 30)
                 time.sleep(delay)
@@ -364,13 +355,14 @@ def watch_ads():
         safe_goto(page, ADS_URL)
         time.sleep(random.randint(3, 7))
 
-        for _ in range(3):
+        for i in range(3):
             try:
                 # page.click(".user-quest__watch-ads-btn")
                 safe_click(page, ".user-quest__watch-ads-btn")
                 time.sleep(35)  # ads last either 20 or 30 seconds
                 # page.click("[data-fullscreen-element-name='close-btn']")
                 safe_click(page, "[data-fullscreen-element-name='close-btn']")
+                print_cyan(f"Watched {i + 1} AD(s)")
                 time.sleep(random.randint(2, 4))
             except Exception:
                 ensure_logged_in(page)
@@ -453,11 +445,14 @@ def watch_ads():
 # thread = threading.Thread(target=install_chromium, daemon=True)
 # thread.start()
 
-print_cyan("[STARTUP] Checking Chromium before scheduling...")
-check_chromium()
-print_cyan("[STARTUP] Starting scheduler...")
-scheduling()
-print_cyan("[STARTUP] Scheduler started. Flask starting...")
+# print_cyan("[STARTUP] Checking Chromium before scheduling...")
+# check_chromium()
+# print_cyan("[STARTUP] Starting scheduler...")
+# scheduling()
+# print_cyan("[STARTUP] Scheduler started. Flask starting...")
+
+leave_comments()
+watch_ads()
 
 # if __name__ == "__main__":
 port = int(os.environ.get("PORT", 3000))
